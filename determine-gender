@@ -2,14 +2,13 @@
 
 // Parse arguments
 var args = process.argv.slice(2);
-if (args.length !== 1) {
-  console.error('usage: determine-gender people.ttl');
+if (args.length !== 2) {
+  console.error('usage: determine-gender people.ttl language.json');
   process.exit(1);
 }
-var peopleFile = args[0];
-
 var fs = require('fs'),
     N3 = require('n3'),
+    _ = require('lodash'),
     stream = require('stream'),
     request = require('request'),
     htmlparser = require('htmlparser2');
@@ -17,6 +16,15 @@ var fs = require('fs'),
 var FOAF = 'http://xmlns.com/foaf/0.1/';
 var IGNORE = 1, TEXT = 2, TITLE = 3,
     modes = { 'script': IGNORE, 'style': IGNORE, 'h1': TITLE };
+
+var peopleFile = args[0],
+    config = JSON.parse(fs.readFileSync(args[1]));
+
+// Parse the configuration
+config.allSignalWords = _.reduce(config.signalWords, function (all, scores) {
+  _.each(scores, function (score, key) { all[key] = true; });
+  return all;
+}, {});
 
 // Analyze all people
 var people = createPeopleStream(peopleFile);
@@ -51,6 +59,7 @@ function analyzePerson(person, callback) {
     person.html = body;
     person.text = bodyText.trim();
     person.name = title.trim();
+    person.score = scoreWithSignalWords(person);
     callback(null, person);
   }), bodyText = '', title = '';
 
@@ -77,7 +86,26 @@ function analyzePerson(person, callback) {
   page.on('end',  function ()  { parser.end(); });
 }
 
+// Assign gender scores based on signal words
+function scoreWithSignalWords(person) {
+  // Determine the number of occurrences per signal word
+  var wordFinder = /\w+/g, match, signalWords = {};
+  while (match = wordFinder.exec(person.text)) {
+    var word = match[0].toLowerCase();
+    if (word in config.allSignalWords)
+      signalWords[word] = (signalWords[word] || 0) + 1;
+  }
+  // For each gender, calculate a score
+  var genderScores = {};
+  for (var gender in config.signalWords) {
+    genderScores[gender] = 0;
+    for (var word in config.signalWords[gender])
+      genderScores[gender] += (signalWords[word] || 0) * config.signalWords[gender][word];
+  }
+  return genderScores;
+}
+
 // Writes the extracted information
 function writePerson(person) {
-  console.log(person.name);
+  console.log(person.name, person.score);
 }

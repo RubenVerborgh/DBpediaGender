@@ -1,0 +1,14 @@
+{
+  "signalWords": {
+    "male": {
+      "hij": 1.0,
+      "hem": 1.0,
+      "zijn": 0.5
+    },
+    "female": {
+      "zij": 0.7,
+      "ze": 0.5,
+      "haar": 0.8
+    }
+  }
+}

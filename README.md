@@ -13,5 +13,5 @@ $ ./list-people http://fragments.dbpedia.org/2014/nl > people_nl.ttl
 Extracts gender information for the given list of people.
 
 ```
-$ ./determine-gender people_nl.ttl
+$ ./determine-gender people_nl.ttl nl.json
 ```
