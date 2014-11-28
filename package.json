@@ -1,0 +1,8 @@
+{
+  "author": "Ruben Verborgh <ruben.verborgh@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "n3": "~0.3.4",
+    "ldf-client": "~1.2.0"
+  }
+}

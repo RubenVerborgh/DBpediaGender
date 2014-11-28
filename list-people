@@ -1,0 +1,32 @@
+#!/usr/bin/env node
+
+// Parse arguments
+var args = process.argv.slice(2);
+if (args.length !== 1) {
+  console.error('usage: list-people http://example.org/dataset/fragments');
+  process.exit(1);
+}
+var startFragment = args[0];
+
+var N3 = require('n3'),
+    ldf = require('ldf-client');
+ldf.Logger.setLevel('warning');
+
+var prefixes = {
+  foaf: 'http://xmlns.com/foaf/0.1/',
+};
+
+// Execute people query
+var fragmentsClient = new ldf.FragmentsClient(startFragment);
+var query = 'CONSTRUCT WHERE {\n' +
+            '  ?person a foaf:Person;\n' +
+            '          foaf:isPrimaryTopicOf ?article.\n' +
+            '}';
+var results = new ldf.SparqlIterator(query, { fragmentsClient: fragmentsClient, prefixes: prefixes });
+
+// Write results
+var writer = new N3.StreamWriter(prefixes);
+writer.pipe(process.stdout);
+results.on('data', function (triple) { writer.write(triple); })
+results.on('end',  function () { writer.end(); });
+results.on('error', console.error);
