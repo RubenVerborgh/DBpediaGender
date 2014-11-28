@@ -13,9 +13,13 @@ var fs = require('fs'),
     request = require('request'),
     htmlparser = require('htmlparser2');
 
+var minimumScore = 5,
+    minimumDifferenceFactor = 2;
+
 var FOAF = 'http://xmlns.com/foaf/0.1/';
 var IGNORE = 1, TEXT = 2, TITLE = 3,
     modes = { 'script': IGNORE, 'style': IGNORE, 'h1': TITLE };
+var analyzers = [scoreWithSignalWords];
 
 var peopleFile = args[0],
     config = JSON.parse(fs.readFileSync(args[1]));
@@ -59,7 +63,14 @@ function analyzePerson(person, callback) {
     person.html = body;
     person.text = bodyText.trim();
     person.name = title.trim();
-    person.score = scoreWithSignalWords(person);
+
+    // Determine scores with all analyzers
+    person.score = _.reduce(analyzers, function (all, analyze) {
+      var score = analyze(person);
+      for (var gender in score)
+        all[gender] = (all[gender] || 0) + score[gender];
+      return all;
+    }, {});
     callback(null, person);
   }), bodyText = '', title = '';
 
@@ -107,5 +118,14 @@ function scoreWithSignalWords(person) {
 
 // Writes the extracted information
 function writePerson(person) {
-  console.log(person.name, person.score);
+  var scores = _.sortBy(_.map(person.score, function (value, key) {
+    return { gender: key, score: value };
+  }), 'score'), best = scores.pop(), second = scores.pop();
+
+  // The score of the best alternative should be sufficiently high
+  if (!best || best.score < minimumScore) return;
+  // The score of the second-best alternative should be sufficiently different
+  if (second && best.score < second.score * minimumDifferenceFactor) return;
+
+  console.log('%s\t%s', person.name, best.gender);
 }
