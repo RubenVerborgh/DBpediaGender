@@ -131,5 +131,5 @@ function writePerson(person) {
   // The score of the second-best alternative should be sufficiently different
   if (second && best.score < second.score * minimumDifferenceFactor) return;
 
-  console.log('%s\t%s', person.name, best.gender);
+  console.log('<%s> foaf:gender "%s".', person.url, best.gender);
 }
