@@ -8,3 +8,10 @@ Creates a list of people from the given [triple pattern fragments](http://linked
 ```
 $ ./list-people http://fragments.dbpedia.org/2014/nl > people_nl.ttl
 ```
+
+## determine-gender
+Extracts gender information for the given list of people.
+
+```
+$ ./determine-gender people_nl.ttl
+```

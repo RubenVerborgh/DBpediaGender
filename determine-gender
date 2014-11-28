@@ -1,0 +1,83 @@
+#!/usr/bin/env node
+
+// Parse arguments
+var args = process.argv.slice(2);
+if (args.length !== 1) {
+  console.error('usage: determine-gender people.ttl');
+  process.exit(1);
+}
+var peopleFile = args[0];
+
+var fs = require('fs'),
+    N3 = require('n3'),
+    stream = require('stream'),
+    request = require('request'),
+    htmlparser = require('htmlparser2');
+
+var FOAF = 'http://xmlns.com/foaf/0.1/';
+var IGNORE = 1, TEXT = 2, TITLE = 3,
+    modes = { 'script': IGNORE, 'style': IGNORE, 'h1': TITLE };
+
+// Analyze all people
+var people = createPeopleStream(peopleFile);
+(function analyzeNextPerson() {
+  var person = people.read();
+  if (!person) return people.once('readable', analyzeNextPerson);
+  analyzePerson(person, function (error, person) {
+    error ? console.error(error) : writePerson(person);
+    analyzeNextPerson();
+  });
+})();
+
+// Creates a stream of people objects
+function createPeopleStream(file) {
+  var reader = new N3.StreamParser();
+  fs.createReadStream(peopleFile).pipe(reader);
+  var people = new stream.Transform({ objectMode: true });
+  people._transform = function (triple, encoding, done) {
+    if (triple.predicate === FOAF + 'isPrimaryTopicOf')
+      this.push({ url: triple.subject, page: triple.object });
+    done();
+  };
+  reader.pipe(people);
+  return people;
+}
+
+// Analyzes the given person
+function analyzePerson(person, callback) {
+  // Read the entire body
+  var page = request(person.page, function (error, response, body) {
+    if (error) return callback(error);
+    person.html = body;
+    person.text = bodyText.trim();
+    person.name = title.trim();
+    callback(null, person);
+  }), bodyText = '', title = '';
+
+  // Parse the text inside of the HTML
+  var parser = new htmlparser.Parser({
+    // Set the parsing mode according to the opening tag
+    onopentag: function (tagName) {
+      if (tagName in modes)
+        mode = modes[tagName];
+    },
+    // Revert to text mode after a tag has been closed
+    onclosetag: function (tagName) {
+      mode = TEXT;
+    },
+    // Process a chunk of text, depending on the mode
+    ontext: function (t) {
+      if (mode === TEXT)
+        bodyText += t.trim() + ' ';
+      else if (mode === TITLE)
+        title += t.trim() + ' ';
+    },
+  }), mode = TEXT;
+  page.on('data', function (d) { parser.write(d); });
+  page.on('end',  function ()  { parser.end(); });
+}
+
+// Writes the extracted information
+function writePerson(person) {
+  console.log(person.name);
+}
