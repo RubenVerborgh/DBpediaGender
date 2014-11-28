@@ -13,7 +13,8 @@ var fs = require('fs'),
     request = require('request'),
     htmlparser = require('htmlparser2');
 
-var minimumScore = 5,
+var workers = 4,
+    minimumScore = 5,
     minimumDifferenceFactor = 2;
 
 var FOAF = 'http://xmlns.com/foaf/0.1/';
@@ -32,14 +33,17 @@ config.allSignalWords = _.reduce(config.signalWords, function (all, scores) {
 
 // Analyze all people
 var people = createPeopleStream(peopleFile);
-(function analyzeNextPerson() {
+function analyzeNextPerson() {
   var person = people.read();
   if (!person) return people.once('readable', analyzeNextPerson);
   analyzePerson(person, function (error, person) {
     error ? console.error(error) : writePerson(person);
     analyzeNextPerson();
   });
-})();
+};
+while (workers-- > 0)
+  analyzeNextPerson();
+people.on('end', function () { process.exit(0); });
 
 // Creates a stream of people objects
 function createPeopleStream(file) {
