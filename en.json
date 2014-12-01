@@ -1,0 +1,13 @@
+{
+  "signalWords": {
+    "male": {
+      "he": 1.0,
+      "him": 1.0,
+      "his": 1.0
+    },
+    "female": {
+      "she": 1.0,
+      "her": 1.0
+    }
+  }
+}
